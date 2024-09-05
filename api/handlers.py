@@ -7,8 +7,9 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from api.pydantic_models import User, UserInDB
-from database.func import UserCRUD
-from api.auth import create_access_token, verify_password, decode_access_token
+from database.func_db import UserCRUD
+from api.auth import AuthService
+from config import config
 
 logger.remove()  # Удалите все существующие обработчики
 logger.add(sys.stdout, level="INFO", format="{time} {level} {message}", backtrace=True, diagnose=True)
@@ -60,7 +61,7 @@ async def register_user(user: User, db: AsyncSession = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="User already registered")
     await user_crud.create_user(user)
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = AuthService.create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -100,67 +101,73 @@ async def login(
         )
 
     access_token_expires = timedelta(minutes=30)
-    access_token = create_access_token(
+    access_token = AuthService.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    refresh_token_expires = timedelta(days=config.REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token = AuthService.create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
 
-    return {"access_token": access_token, "token_type": "bearer"}
 
-
-@router.get("/users/me")
-async def read_users_me(
-        token: str = Depends(oauth2_scheme),
+@router.post("/refresh-token")
+async def refresh_access_token(
+        refresh_token: str = Body(..., embed=True),
         db: AsyncSession = Depends(get_db)
 ):
     """
-    Получение информации о текущем пользователе.
-
-    **Параметры**:
-    - `token` (str): JWT токен, предоставляемый через Depends(oauth2_scheme).
-      Этот токен используется для идентификации и авторизации текущего пользователя.
-    - `db` (AsyncSession): Асинхронная сессия базы данных, предоставляемая через Depends.
-
-    **Возвращает**:
-    - `user` (User): Объект пользователя, содержащий информацию о текущем пользователе.
-
-    **Ошибки**:
-    - 401: Некорректные учетные данные или истекший токен. Возвращается, если токен не валиден или не может быть декодирован.
-    - 404: Пользователь не найден. Возвращается, если декодированный токен содержит имя пользователя, но в базе данных пользователь не найден.
-
-    **Описание**:
-    Этот эндпоинт используется для получения информации о текущем пользователе на основе переданного JWT токена.
-    Если токен не валиден или пользователь не найден, будет возвращена соответствующая ошибка.
-
-    **Пример ответа**:
-    ```json
-    {
-        "username": "example_user",
-        "hashed_password": "hashed_password_value"
-    }
-    ```
+    Обновляет access token и refresh token.
     """
-    user_crud = UserCRUD(db)
-
-    # Декодируем токен и получаем полезные данные
-    payload = decode_access_token(token)
+    # Декодируем refresh token
+    payload = AuthService.decode_refresh_token(refresh_token)
     if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
-    username: str = payload.get("sub")
+    # Извлекаем username из payload
+    username = payload.get("sub")
     if username is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    # Получаем информацию о пользователе из базы данных
-    user = await user_crud.get_user(username)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Проверяем пользователя в БД
+    user = await UserCRUD(db).get_user(username)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    return user
+    # Генерируем новые токены
+    access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = AuthService.create_access_token(data={"sub": username}, expires_delta=access_token_expires)
+
+    refresh_token_expires = timedelta(days=config.REFRESH_TOKEN_EXPIRE_DAYS)
+    new_refresh_token = AuthService.create_refresh_token(data={"sub": username}, expires_delta=refresh_token_expires)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/habits", response_model=HabitCreate)
+async def create_habit(
+    habit_data: HabitCreate,
+    token: str = Depends(AuthService.get_current_user),  # Проверка JWT токена и получение пользователя
+    db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+):
+    user_crud = UserCRUD(db)
+    # Проверяем токен и получаем текущего пользователя
+    current_user = await user_crud.get_current_user(token)
+
+    # Создаем новую привычку через CRUD
+    habit_crud = HabitCRUD(db)
+    new_habit = await habit_crud.create_habit(
+        user_id=current_user.id,  # Используем id пользователя из токена
+        title=habit_data.title,
+        description=habit_data.description,
+        duration_days=habit_data.duration_days
+    )
+
+    return new_habit
+
