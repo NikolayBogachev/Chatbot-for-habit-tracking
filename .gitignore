@@ -4,3 +4,5 @@ poetry.lock
 pyproject.toml
 /my_project/
 /alembic/
+/.idea/
+/venv/

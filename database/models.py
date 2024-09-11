@@ -5,7 +5,7 @@ from sqlalchemy import (
     DateTime,
     Text,
     String,
-    UniqueConstraint,
+    UniqueConstraint, TIMESTAMP, Date, Boolean,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base

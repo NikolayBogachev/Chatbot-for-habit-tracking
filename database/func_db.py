@@ -1,12 +1,13 @@
-from typing import Optional
+from datetime import date
+from typing import Optional, List, Any, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, Row, RowMapping
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
-from database.models import UserInDB, HabitInDB
-from api.pydantic_models import User
+from database.models import UserInDB, HabitInDB, HabitLogInDB
+from api.pydantic_models import User, HabitLogCreate
 from api.auth import AuthService
 
 
@@ -20,7 +21,7 @@ class UserCRUD:
         return result.scalars().first()
 
     async def create_user(self, user: User) -> UserInDB:
-        db_user = UserInDB(username=user.username, hashed_password=get_password_hash(user.password))
+        db_user = UserInDB(username=user.username, hashed_password=AuthService.get_password_hash(user.password))
 
         async with self.db as session:
             try:
@@ -64,15 +65,28 @@ class HabitCRUD:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_habit(self, user_id: int, title: str, description: Optional[str], duration_days: int):
-        new_habit = Habit(
+    async def create_habit(
+            self,
+            user_id: int,
+            name: str,
+            description: Optional[str],
+            target_days: int,
+            streak_days: int,
+            start_date: date,
+            last_streak_start: Optional[date],
+            current_streak: int,
+            total_completed: int
+    ) -> HabitInDB:
+        new_habit = HabitInDB(
             user_id=user_id,
-            title=title,
+            name=name,
             description=description,
-            duration_days=duration_days,
-            current_streak=0,  # Инициализируем текущую серию выполнений
-            best_streak=0,     # Лучший результат по серии выполнений
-            completed_days=0   # Количество выполненных дней
+            target_days=target_days,
+            streak_days=streak_days,
+            start_date=start_date,
+            last_streak_start=last_streak_start,
+            current_streak=current_streak,
+            total_completed=total_completed
         )
         self.db.add(new_habit)
         await self.db.commit()
@@ -84,13 +98,14 @@ class HabitCRUD:
         result = await self.db.execute(query)
         return result.scalars().first()
 
-    async def get_habits_by_user(self, user_id: int) -> List[HabitInDB]:
+    async def get_habits_by_user(self, user_id: int) -> Sequence[HabitInDB]:
         query = select(HabitInDB).filter(HabitInDB.user_id == user_id)
         result = await self.db.execute(query)
         return result.scalars().all()
 
     async def update_habit(self, habit_id: int, name: Optional[str] = None, target_days: Optional[int] = None,
-                           streak_days: Optional[int] = None, start_date: Optional[str] = None) -> Optional[HabitInDB]:
+                           streak_days: Optional[int] = None, start_date: Optional[str] = None,
+                           description: Optional[str] = None) -> Optional[HabitInDB]:
         habit = await self.get_habit(habit_id)
         if habit is None:
             raise NoResultFound(f"Habit with id {habit_id} not found.")
@@ -103,6 +118,8 @@ class HabitCRUD:
             habit.streak_days = streak_days
         if start_date is not None:
             habit.start_date = start_date
+        if description is not None:
+            habit.description = description
 
         self.db.add(habit)
         await self.db.commit()
@@ -115,4 +132,44 @@ class HabitCRUD:
             raise NoResultFound(f"Habit with id {habit_id} not found.")
 
         await self.db.delete(habit)
+        await self.db.commit()
+
+
+class HabitLogCRUD:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_habit_log(self, habit_id: int, log_date: date, log_data: HabitLogCreate):
+        # Создание записи HabitLogInDB с извлечением поля completed
+        new_log = HabitLogInDB(
+            habit_id=habit_id,
+            log_date=log_date,
+            completed=log_data.completed  # Извлекаем булевое значение completed
+        )
+        # Добавляем новую запись в сессию
+        self.db.add(new_log)
+
+        # Коммитим изменения
+        await self.db.commit()
+
+        # Обновляем сессию и возвращаем новый лог
+        await self.db.refresh(new_log)
+        return new_log
+
+    async def get_habit_logs_by_date(self, habit_id: int, log_date: date) -> Sequence[HabitLogInDB]:
+        result = await self.db.execute(
+            select(HabitLogInDB).where(
+                HabitLogInDB.habit_id == habit_id,
+                HabitLogInDB.log_date == log_date
+            )
+        )
+        return result.scalars().all()
+
+    async def delete_habit_log(self, log_id: int) -> None:
+        # Удаление записи о выполнении привычки
+        result = await self.db.execute(select(HabitLogInDB).where(HabitLogInDB.id == log_id))
+        log = result.scalars().first()
+        if log is None:
+            raise NoResultFound(f"Habit log with id {log_id} not found.")
+        await self.db.delete(log)
         await self.db.commit()

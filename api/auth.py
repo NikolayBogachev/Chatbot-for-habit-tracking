@@ -1,12 +1,40 @@
 from datetime import datetime, timedelta
 from typing import Optional
+
+from fastapi import Depends, HTTPException
+from fastapi.logger import logger
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from pydantic import ValidationError
+from starlette import status
+
 from config import config
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 class AuthService:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    @classmethod
+    async def get_current_user(cls, token: str = Depends(oauth2_scheme)):
+        try:
+            payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
+            username: str = payload.get("sub")
+            if username is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not validate credentials",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return username
+        except (JWTError, ValidationError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     @classmethod
     def verify_password(cls, plain_password: str, hashed_password: str) -> bool:
@@ -32,7 +60,8 @@ class AuthService:
         try:
             payload = jwt.decode(token, config.SECRET_KEY, algorithms=[config.ALGORITHM])
             return payload
-        except JWTError:
+        except JWTError as e:
+            logger.error(f"Token decoding failed: {str(e)}")
             return None
 
     @classmethod
