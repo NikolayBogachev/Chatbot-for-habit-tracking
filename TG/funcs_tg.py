@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List, Dict
 
 from aiogram.client.session import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
@@ -39,6 +39,43 @@ class User:
             except Exception as e:
                 logger.error(f"An unexpected error occurred: {str(e)}")
                 return None
+
+    @classmethod
+    async def get_habits(cls) -> dict | None:
+        """
+        Метод для получения всех привычек текущего пользователя.
+        """
+
+        headers = {
+            "Authorization": f"{cls.token_type} {cls.access_token}"
+        }
+        response = await cls._make_request(f"{config.URL}/habits", method="GET", headers=headers)
+        if response:
+            return response  # Ожидается, что ответ будет списком привычек
+        return None
+
+    @classmethod
+    async def delete_habit(cls, habit_id: int) -> dict | None:
+        """
+        Метод для удаления привычки по идентификатору.
+        """
+
+        headers = {
+            "Authorization": f"{cls.token_type} {cls.access_token}"
+        }
+        return await cls._make_request(f"{config.URL}/habits/{habit_id}", method="DELETE", headers=headers)
+
+    @classmethod
+    async def create_habit(cls, habit_data: dict) -> dict | None:
+        """
+        Метод для создания новой привычки через запрос к API.
+        """
+
+        headers = {
+            "Authorization": f"{cls.token_type} {cls.access_token}",
+            "Content-Type": "application/json"
+        }
+        return await cls._make_request(f"{config.URL}/habits", method="POST", json_data=habit_data, headers=headers)
 
     @classmethod
     async def register_user(cls, username: str, chat_id: int) -> str | None:

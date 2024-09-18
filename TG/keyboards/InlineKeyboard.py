@@ -7,9 +7,22 @@ def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
                               callback_data="useful")],
         [InlineKeyboardButton(text="❌ Отказаться от вредной привычки",
                               callback_data="harmful")],
-        [InlineKeyboardButton(text="🚫 Перестать следить за привычкой",
-                              callback_data="stop_following")],
+        [InlineKeyboardButton(text="🔍 Отслеживание привычек",
+                              callback_data="track")],
+        [InlineKeyboardButton(text="⚙️ Редактировать привычки",
+                              callback_data="update_habits")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+
+    return keyboard
+
+
+def update_habits_keyboard() -> InlineKeyboardMarkup:
+    kb = [
+        [InlineKeyboardButton(text="✏️  Изменить привычку", callback_data="change")],
+        [InlineKeyboardButton(text="❌  Удалить привычку", callback_data="delete")],
+
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 

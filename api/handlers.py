@@ -4,7 +4,8 @@ from typing import List
 from fastapi.params import Body
 from loguru import logger
 
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from starlette.responses import JSONResponse
 
 from database.db import AsyncSession, get_db
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -160,28 +161,53 @@ async def create_habit(
     token: str = Depends(oauth2_scheme),  # Проверка JWT токена и получение пользователя
     db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
 ):
-
     user_crud = UserCRUD(db)
     logger.info(f"Received token: {token}")  # Логирование токена
-    # Проверяем токен и получаем текущего пользователя
-    current_user = await user_crud.get_current_user(token)
-    logger.info(f"Current user: {current_user.id}")
 
-    # Создаем новую привычку через CRUD
-    habit_crud = HabitCRUD(db)
-    new_habit = await habit_crud.create_habit(
-        user_id=current_user.id,  # Используем id пользователя из токена
-        name=habit_data.name,
-        description=habit_data.description,
-        target_days=habit_data.target_days,
-        streak_days=habit_data.streak_days,
-        start_date=habit_data.start_date,
-        last_streak_start=habit_data.last_streak_start,
-        current_streak=habit_data.current_streak,
-        total_completed=habit_data.total_completed
-    )
+    try:
+        # Проверяем токен и получаем текущего пользователя
+        current_user = await user_crud.get_current_user(token)
+        logger.info(f"Current user: {current_user.id}")
 
-    return new_habit
+        # Создаем новую привычку через CRUD
+        habit_crud = HabitCRUD(db)
+        new_habit = await habit_crud.create_habit(
+            user_id=current_user.id,  # Используем id пользователя из токена
+            name=habit_data.name,
+            description=habit_data.description,
+            target_days=habit_data.target_days,
+            streak_days=habit_data.streak_days,
+            start_date=habit_data.start_date,
+            last_streak_start=habit_data.last_streak_start,
+            current_streak=habit_data.current_streak,
+            total_completed=habit_data.total_completed
+        )
+
+        # Возвращаем успешный ответ с объектом привычки и полем success
+        return new_habit
+
+    except HTTPException as http_exc:
+        # Обработка HTTP исключений (например, 401 Unauthorized)
+        return JSONResponse(
+            status_code=http_exc.status_code,
+            content={"success": False, "detail": http_exc.detail}
+        )
+
+    except SQLAlchemyError as sql_exc:
+        # Обработка ошибок SQLAlchemy
+        logger.error(f"Database error: {sql_exc}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "detail": "Ошибка базы данных."}
+        )
+
+    except Exception as exc:
+        # Общая обработка непредвиденных ошибок
+        logger.error(f"Unexpected error: {exc}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "detail": "Произошла непредвиденная ошибка."}
+        )
 
 
 @router.get("/habits/{habit_id}", response_model=HabitCreate)
