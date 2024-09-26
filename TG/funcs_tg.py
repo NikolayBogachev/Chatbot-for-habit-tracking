@@ -41,14 +41,21 @@ class User:
                 return None
 
     @classmethod
+    def get_auth_header(cls) -> dict[str, str]:
+        """
+        Возвращает заголовок Authorization с токеном.
+        """
+        if cls.access_token and cls.token_type:
+            return {"Authorization": f"{cls.token_type} {cls.access_token}"}
+        return {}
+
+    @classmethod
     async def get_habits(cls) -> dict | None:
         """
         Метод для получения всех привычек текущего пользователя.
         """
 
-        headers = {
-            "Authorization": f"{cls.token_type} {cls.access_token}"
-        }
+        headers = cls.get_auth_header()
         response = await cls._make_request(f"{config.URL}/habits", method="GET", headers=headers)
         if response:
             return response  # Ожидается, что ответ будет списком привычек
@@ -60,9 +67,7 @@ class User:
         Метод для удаления привычки по идентификатору.
         """
 
-        headers = {
-            "Authorization": f"{cls.token_type} {cls.access_token}"
-        }
+        headers = cls.get_auth_header()
         return await cls._make_request(f"{config.URL}/habits/{habit_id}", method="DELETE", headers=headers)
 
     @classmethod
@@ -122,11 +127,3 @@ class User:
             return response
         return None
 
-    @classmethod
-    def get_auth_header(cls) -> dict[str, str]:
-        """
-        Возвращает заголовок Authorization с токеном.
-        """
-        if cls.access_token and cls.token_type:
-            return {"Authorization": f"{cls.token_type} {cls.access_token}"}
-        return {}

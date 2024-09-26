@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.routing import APIRouter
@@ -7,15 +9,17 @@ from handlers import router, logger
 
 from database.db import init_db
 
-app = FastAPI(title="Chat-Bot")
 
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
 
     init_db()
 
     logger.info("Приложение успешно запущено")
+    yield
+
+
+app = FastAPI(title="Chat-Bot", lifespan=lifespan)
 
 
 main_api_router = APIRouter()

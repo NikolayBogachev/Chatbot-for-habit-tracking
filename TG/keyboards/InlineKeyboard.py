@@ -1,5 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from TG.funcs_tg import User
+
 
 def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
     kb = [
@@ -22,6 +24,7 @@ def update_habits_keyboard() -> InlineKeyboardMarkup:
     kb = [
         [InlineKeyboardButton(text="✏️  Изменить привычку", callback_data="change")],
         [InlineKeyboardButton(text="❌  Удалить привычку", callback_data="delete")],
+        [InlineKeyboardButton(text="🔄  Назад", callback_data="back")]
 
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
@@ -86,5 +89,38 @@ def harmful_habit_choice_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔄 Назад", callback_data="back")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+
+    return keyboard
+
+
+# Функция для создания инлайн-клавиатуры на основе списка привычек
+def create_habits_inline_keyboard(habits: dict) -> InlineKeyboardMarkup:
+    # Создаем список для кнопок
+    buttons = []
+
+    if habits:
+        # Для каждой привычки создаем кнопку
+        for habit in habits:
+            habit_name = habit["name"]
+            habit_id = habit["id"]
+            # Создаем кнопку с названием привычки и её идентификатором как callback_data
+            button = InlineKeyboardButton(text=habit_name, callback_data=f"habit_{habit_id}")
+            # Добавляем кнопку в список кнопок
+            buttons.append([button])  # добавляем кнопку в отдельный список, чтобы создать новый ряд
+
+        # Добавляем кнопку "🔄 Назад"
+        back_button = InlineKeyboardButton(text="🔄 Назад", callback_data="back")
+        buttons.append([back_button])  # добавляем кнопку "Назад" в отдельный ряд
+
+    else:
+        # Если привычек нет, добавляем сообщение, что привычек пока нет
+        no_habits_button = InlineKeyboardButton(text="Привычек пока нет", callback_data="no_habits")
+        buttons.append([no_habits_button])
+        # Также добавляем кнопку "🔄 Назад" в случае отсутствия привычек
+        back_button = InlineKeyboardButton(text="🔄 Назад", callback_data="back")
+        buttons.append([back_button])  # добавляем кнопку "Назад" в отдельный ряд
+
+    # Создаем инлайн-клавиатуру, передавая список списков кнопок
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     return keyboard
