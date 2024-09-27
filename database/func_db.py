@@ -1,11 +1,11 @@
 from datetime import date
-from typing import Optional, List, Any, Sequence
+from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, Row, RowMapping
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+
 from database.models import UserInDB, HabitInDB, HabitLogInDB
 from api.pydantic_models import User, HabitLogCreate
 from api.auth import AuthService
@@ -75,7 +75,8 @@ class HabitCRUD:
             start_date: date,
             last_streak_start: Optional[date],
             current_streak: int,
-            total_completed: int
+            total_completed: int,
+            is_tracked: Optional[bool]
     ) -> HabitInDB:
         new_habit = HabitInDB(
             user_id=user_id,
@@ -86,7 +87,8 @@ class HabitCRUD:
             start_date=start_date,
             last_streak_start=last_streak_start,
             current_streak=current_streak,
-            total_completed=total_completed
+            total_completed=total_completed,
+            is_tracked=is_tracked
         )
         self.db.add(new_habit)
         await self.db.commit()
@@ -105,7 +107,7 @@ class HabitCRUD:
 
     async def update_habit(self, habit_id: int, name: Optional[str] = None, target_days: Optional[int] = None,
                            streak_days: Optional[int] = None, start_date: Optional[str] = None,
-                           description: Optional[str] = None) -> Optional[HabitInDB]:
+                           description: Optional[str] = None, is_tracked: Optional[bool] = None) -> Optional[HabitInDB]:
         habit = await self.get_habit(habit_id)
         if habit is None:
             raise NoResultFound(f"Habit with id {habit_id} not found.")
@@ -120,6 +122,8 @@ class HabitCRUD:
             habit.start_date = start_date
         if description is not None:
             habit.description = description
+        if is_tracked is not None:
+            habit.is_tracked = is_tracked
 
         self.db.add(habit)
         await self.db.commit()

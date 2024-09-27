@@ -41,6 +41,7 @@ class HabitInDB(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())  # Дата создания записи привычки
     updated_at = Column(TIMESTAMP, server_default=func.now(),
                         onupdate=func.now())  # Дата последнего обновления записи привычки
+    is_tracked = Column(Boolean, nullable=False, default=True)  # Новая колонка: отслеживается привычка или нет
 
     user = relationship("UserInDB", back_populates="habits")  # Связь с пользователем
     logs = relationship("HabitLogInDB", back_populates="habit")  # Связь с записями о выполнении привычек

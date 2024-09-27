@@ -33,6 +33,7 @@ class HabitCreate(TunedModel):
     last_streak_start: Optional[date] = None
     current_streak: int = 0
     total_completed: int = 0
+    is_tracked: Optional[bool] = None
 
 
 class HabitResponse(TunedModel):
@@ -45,6 +46,7 @@ class HabitResponse(TunedModel):
     last_streak_start: Optional[date] = None
     current_streak: int = 0
     total_completed: int = 0
+    is_tracked: bool
 
 
 class HabitUpdate(TunedModel):
@@ -53,6 +55,7 @@ class HabitUpdate(TunedModel):
     target_days: Optional[int] = None
     streak_days: Optional[int] = None
     start_date: Optional[date] = None
+    is_tracked: Optional[bool] = None
 
 
 class HabitLogResponse(TunedModel):

@@ -20,6 +20,63 @@ def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
+def track_habit_keyboard() -> InlineKeyboardMarkup:
+    kb = [
+        [InlineKeyboardButton(text="➕ Начать отслеживать привычку",
+                              callback_data="begin")],
+        [InlineKeyboardButton(text="❌ Прекратить отслеживать привычку",
+                              callback_data="cease")],
+        [InlineKeyboardButton(text="🔄  Назад", callback_data="back")]
+
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+
+    return keyboard
+
+
+def create_track_habits_inline_keyboard(habits: dict, is_tracked: bool) -> InlineKeyboardMarkup:
+    """
+    Создает инлайн-клавиатуру с привычками, отсортированными по флагу отслеживания.
+
+    :param habits: Список привычек в формате словарей.
+    :param is_tracked: Флаг отслеживания привычек. True для отслеживаемых привычек, False для неотслеживаемых.
+    :return: Инлайн-клавиатура.
+    """
+    if not habits:
+        habits = []
+    # Фильтруем привычки по флагу отслеживания
+    filtered_habits = [habit for habit in habits if habit.get("is_tracked") == is_tracked]
+
+    # Создаем список для кнопок
+    buttons = []
+
+    if filtered_habits:
+        # Для каждой отфильтрованной привычки создаем кнопку
+        for habit in filtered_habits:
+            habit_name = habit["name"]
+            habit_id = habit["id"]
+            # Создаем кнопку с названием привычки и её идентификатором как callback_data
+            button = InlineKeyboardButton(text=habit_name, callback_data=f"habit_{habit_id}")
+            # Добавляем кнопку в список кнопок
+            buttons.append([button])  # добавляем кнопку в отдельный список, чтобы создать новый ряд
+    else:
+        # Если нет привычек с нужным флагом, добавляем сообщение
+        no_habits_button = InlineKeyboardButton(
+            text="Нет привычек с этим статусом",
+            callback_data="no_habits"
+        )
+        buttons.append([no_habits_button])
+
+    # Добавляем кнопку "🔄 Назад" в отдельный ряд
+    back_button = InlineKeyboardButton(text="🔄 Назад", callback_data="back")
+    buttons.append([back_button])
+
+    # Создаем инлайн-клавиатуру, передавая список списков кнопок
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    return keyboard
+
+
 def update_habits_keyboard() -> InlineKeyboardMarkup:
     kb = [
         [InlineKeyboardButton(text="✏️  Изменить привычку", callback_data="change")],
@@ -135,3 +192,4 @@ def create_habits_inline_keyboard(habits: dict) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     return keyboard
+

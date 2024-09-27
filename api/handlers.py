@@ -180,7 +180,8 @@ async def create_habit(
             start_date=habit_data.start_date,
             last_streak_start=habit_data.last_streak_start,
             current_streak=habit_data.current_streak,
-            total_completed=habit_data.total_completed
+            total_completed=habit_data.total_completed,
+            is_tracked=habit_data.is_tracked
         )
 
         # Возвращаем успешный ответ с объектом привычки и полем success
@@ -277,7 +278,8 @@ async def update_habit(
         description=habit_update.description,
         target_days=habit_update.target_days,
         streak_days=habit_update.streak_days,
-        start_date=habit_update.start_date
+        start_date=habit_update.start_date,
+        is_tracked=habit_update.is_tracked
     )
 
     return updated_habit

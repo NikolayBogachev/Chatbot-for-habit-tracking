@@ -15,7 +15,8 @@ from TG.funcs_tg import User
 from TG.keyboards.InlineKeyboard import (get_habit_choice_keyboard, useful_habit_choice_keyboard,
                                          harmful_habit_choice_keyboard, health_habit_keyboard, sport_habit_keyboard,
                                          nutrition_habit_keyboard, update_habits_keyboard,
-                                         create_habits_inline_keyboard, create_change_fields_keyboard)
+                                         create_habits_inline_keyboard, create_change_fields_keyboard,
+                                         track_habit_keyboard, create_track_habits_inline_keyboard)
 from TG.keyboards.ReplyKeyboard import get_main_menu_keyboard
 
 router = Router()
@@ -333,11 +334,73 @@ async def handle_new_value(message: Message, state: FSMContext):
             await message.answer(f"Поле {field_to_change} успешно обновлено!")
 
 
-
-
 """
 Блок различных меню и возврат из них.
 """
+
+
+@router.callback_query(F.data == "track", StateFilter(HabitStates.main_menu))
+async def handle_track_habits(callback: CallbackQuery, state: FSMContext):
+    await switch_keyboard(callback, state, HabitStates.track_habit_menu, track_habit_keyboard)
+
+
+@router.callback_query(F.data == "begin", StateFilter(HabitStates.track_habit_menu))
+async def handle_begin_track_habits(callback: CallbackQuery, state: FSMContext):
+    habits = await User.get_habits()
+    if habits:
+        await switch_keyboard(callback, state, HabitStates.begin_track_habit,
+                              lambda: create_track_habits_inline_keyboard(habits, False))
+    else:
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        habits = await User.get_habits()
+        await switch_keyboard(callback, state, HabitStates.begin_track_habit,
+                              lambda: create_track_habits_inline_keyboard(habits, False))
+
+
+@router.callback_query(F.data == "cease", StateFilter(HabitStates.track_habit_menu))
+async def handle_cease_track_habits(callback: CallbackQuery, state: FSMContext):
+    habits = await User.get_habits()
+    if habits:
+        await switch_keyboard(callback, state, HabitStates.cease_track_habit,
+                              lambda: create_track_habits_inline_keyboard(habits, True))
+    else:
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        habits = await User.get_habits()
+        await switch_keyboard(callback, state, HabitStates.cease_track_habit,
+                              lambda: create_track_habits_inline_keyboard(habits, True))
+
+
+@router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.begin_track_habit,
+                                                                HabitStates.cease_track_habit))
+async def handle_back(callback: CallbackQuery, state: FSMContext):
+    # Получаем текущее состояние
+    current_state = await state.get_state()
+    match  current_state:
+        case HabitStates.begin_track_habit.state:
+            habit_id = int(callback.data.split("_")[-1])  # Извлекаем ID привычки из callback_data
+            # Подготавливаем данные для обновления привычки
+            update_data = {"is_tracked": True}
+            # Логика обновления привычки в базе данных
+            response = await User.update_habit(habit_id, update_data)
+            if response:
+                await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+            else:
+                await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+                response = await User.update_habit(habit_id, update_data)
+                await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+
+        case HabitStates.cease_track_habit.state:
+            habit_id = int(callback.data.split("_")[-1])  # Извлекаем ID привычки из callback_data
+            # Подготавливаем данные для обновления привычки
+            update_data = {"is_tracked": False}
+            # Логика обновления привычки в базе данных
+            response = await User.update_habit(habit_id, update_data)
+            if response:
+                await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+            else:
+                await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+                response = await User.update_habit(habit_id, update_data)
+                await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
 
 
 @router.callback_query(F.data == "update_habits", StateFilter(HabitStates.main_menu))
@@ -346,7 +409,7 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(F.data == "harmful", StateFilter(HabitStates.main_menu))
-async def handle_useful_habit(callback: CallbackQuery, state: FSMContext):
+async def handle_harmful_habit(callback: CallbackQuery, state: FSMContext):
     await switch_keyboard(callback, state, HabitStates.harmful_habit_menu, harmful_habit_choice_keyboard)
 
 
@@ -374,7 +437,8 @@ async def handle_health(callback: CallbackQuery, state: FSMContext):
                        StateFilter(HabitStates.health_menu, HabitStates.useful_habit_menu, HabitStates.sport_menu,
                                    HabitStates.nutrition_menu, HabitStates.harmful_habit_menu,
                                    HabitStates.update_habits_menu, HabitStates.habits_menu, HabitStates.habits_change,
-                                   HabitStates.habits_change_menu)
+                                   HabitStates.habits_change_menu, HabitStates.track_habit_menu,
+                                   HabitStates.begin_track_habit, HabitStates.cease_track_habit)
                        )
 async def handle_back(callback: CallbackQuery, state: FSMContext):
     # Получаем текущее состояние
@@ -407,6 +471,15 @@ async def handle_back(callback: CallbackQuery, state: FSMContext):
         case HabitStates.habits_change_menu.state:
             # Возвращаемся в главное меню
             await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+        case HabitStates.track_habit_menu.state:
+            # Возвращаемся в главное меню
+            await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+        case HabitStates.begin_track_habit.state:
+            # Возвращаемся в главное меню
+            await switch_keyboard(callback, state, HabitStates.track_habit_menu, track_habit_keyboard)
+        case HabitStates.cease_track_habit.state:
+            # Возвращаемся в главное меню
+            await switch_keyboard(callback, state, HabitStates.track_habit_menu, track_habit_keyboard)
 
 """
 Блок обработки дефолтных значений.
