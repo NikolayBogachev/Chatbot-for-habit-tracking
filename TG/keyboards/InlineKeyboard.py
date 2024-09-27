@@ -32,6 +32,17 @@ def update_habits_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
+def create_change_fields_keyboard(habit_id: int) -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(text="Изменить название", callback_data=f"change_name_{habit_id}")],
+        [InlineKeyboardButton(text="Изменить описание", callback_data=f"change_description_{habit_id}")],
+        [InlineKeyboardButton(text="Изменить целевые дни", callback_data=f"change_target_days_{habit_id}")],
+        [InlineKeyboardButton(text="Изменить дату начала", callback_data=f"change_start_date_{habit_id}")],
+        [InlineKeyboardButton(text="🔄 Назад", callback_data="back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def useful_habit_choice_keyboard() -> InlineKeyboardMarkup:
     kb = [
         [InlineKeyboardButton(text="💪 Здоровье", callback_data="health")],

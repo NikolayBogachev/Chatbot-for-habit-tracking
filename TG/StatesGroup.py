@@ -16,6 +16,9 @@ class HabitStates(StatesGroup):
     waiting_for_habit_name = State()  # Ввода названия привычки
     update_habits_menu = State()  # Меню обновления привычек
     habits_menu = State()
+    habits_change_menu = State()
+    habits_change = State()
+    change_field = State()
 
 
 async def switch_keyboard(callback: CallbackQuery, state: FSMContext, next_state: State, keyboard_func):

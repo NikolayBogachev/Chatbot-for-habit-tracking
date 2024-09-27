@@ -15,7 +15,7 @@ from TG.funcs_tg import User
 from TG.keyboards.InlineKeyboard import (get_habit_choice_keyboard, useful_habit_choice_keyboard,
                                          harmful_habit_choice_keyboard, health_habit_keyboard, sport_habit_keyboard,
                                          nutrition_habit_keyboard, update_habits_keyboard,
-                                         create_habits_inline_keyboard)
+                                         create_habits_inline_keyboard, create_change_fields_keyboard)
 from TG.keyboards.ReplyKeyboard import get_main_menu_keyboard
 
 router = Router()
@@ -248,6 +248,20 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
 
 
+@router.callback_query(F.data == "change", StateFilter(HabitStates.update_habits_menu))
+async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
+    habits = await User.get_habits()
+    if habits:
+
+        await switch_keyboard(callback, state, HabitStates.habits_change_menu, lambda: create_habits_inline_keyboard(habits))
+    else:
+        # Если токен неактуален, обновляем его
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        habits = await User.get_habits()
+
+        await switch_keyboard(callback, state, HabitStates.habits_change_menu, lambda: create_habits_inline_keyboard(habits))
+
+
 @router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.habits_menu))
 async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
     habit_id = int(callback.data.split("_")[-1]) # Извлекаем ID привычки из callback_data
@@ -265,6 +279,60 @@ async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
+
+
+@router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.habits_change_menu))
+async def handle_change_habit(callback: CallbackQuery, state: FSMContext):
+    habit_id = int(callback.data.split("_")[-1])  # Извлекаем ID привычки из callback_data
+    await switch_keyboard(callback, state, HabitStates.habits_change,
+                          lambda: create_change_fields_keyboard(habit_id))
+
+
+@router.callback_query(F.data.startswith("change_"), StateFilter(HabitStates.habits_change))
+async def handle_change_field(callback: CallbackQuery, state: FSMContext):
+    action, habit_id = callback.data.split("_")[1:3]
+    habit_id = int(habit_id)
+
+    if action == "name":
+        await callback.message.answer("Введите новое название привычки:")
+        await state.update_data(habit_id=habit_id, change_field="name")
+        await state.set_state(HabitStates.change_field)
+    elif action == "description":
+        await callback.message.answer("Введите новое описание привычки:")
+        await state.update_data(habit_id=habit_id, change_field="description")
+        await state.set_state(HabitStates.change_field)
+    elif action == "target_days":
+        await callback.message.answer("Введите новые целевые дни:")
+        await state.update_data(habit_id=habit_id, change_field="target_days")
+        await state.set_state(HabitStates.change_field)
+    elif action == "start_date":
+        await callback.message.answer("Введите новую дату начала в формате ГГГГ-ММ-ДД:")
+        await state.update_data(habit_id=habit_id, change_field="start_date")
+        await state.set_state(HabitStates.change_field)
+
+
+@router.message(StateFilter(HabitStates.change_field))
+async def handle_new_value(message: Message, state: FSMContext):
+    user_data = await state.get_data()
+    habit_id = user_data["habit_id"]
+    field_to_change = user_data["change_field"]
+    new_value = message.text
+
+    # Подготавливаем данные для обновления привычки
+    update_data = {field_to_change: new_value}
+
+    # Логика обновления привычки в базе данных
+    response = await User.update_habit(habit_id, update_data)
+
+    if response:
+        await message.answer(f"Поле {field_to_change} успешно обновлено!")
+    else:
+        await User.authenticate_user(message.from_user.username, message.chat.id)
+        response = await User.update_habit(habit_id, update_data)
+        if response:
+            await message.answer(f"Поле {field_to_change} успешно обновлено!")
+
+
 
 
 """
@@ -305,7 +373,8 @@ async def handle_health(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "back",
                        StateFilter(HabitStates.health_menu, HabitStates.useful_habit_menu, HabitStates.sport_menu,
                                    HabitStates.nutrition_menu, HabitStates.harmful_habit_menu,
-                                   HabitStates.update_habits_menu, HabitStates.habits_menu)
+                                   HabitStates.update_habits_menu, HabitStates.habits_menu, HabitStates.habits_change,
+                                   HabitStates.habits_change_menu)
                        )
 async def handle_back(callback: CallbackQuery, state: FSMContext):
     # Получаем текущее состояние
@@ -332,7 +401,12 @@ async def handle_back(callback: CallbackQuery, state: FSMContext):
         case HabitStates.habits_menu.state:
             # Возвращаемся в главное меню
             await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
-
+        case HabitStates.habits_change.state:
+            # Возвращаемся в главное меню
+            await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
+        case HabitStates.habits_change_menu.state:
+            # Возвращаемся в главное меню
+            await switch_keyboard(callback, state, HabitStates.main_menu, get_habit_choice_keyboard)
 
 """
 Блок обработки дефолтных значений.

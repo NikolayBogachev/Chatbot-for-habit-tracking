@@ -50,6 +50,32 @@ class User:
         return {}
 
     @classmethod
+    async def update_habit(cls, habit_id: int, habit_update: dict) -> dict | None:
+        """
+        Метод для обновления привычки.
+
+        :param habit_id: Идентификатор привычки, которую нужно обновить.
+        :param habit_update: Словарь с обновляемыми данными привычки.
+        :return: Обновленная привычка в виде словаря, если запрос успешен, иначе None.
+        """
+
+        headers = {
+            "Authorization": f"{cls.token_type} {cls.access_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Отправляем запрос на обновление привычки с обновленными данными в формате JSON
+        response = await cls._make_request(f"{config.URL}/habits/{habit_id}", method="PUT", json_data=habit_update,
+                                           headers=headers)
+
+        if response:
+            logger.info(f"Habit {habit_id} successfully updated.")
+            return response
+        else:
+            logger.error(f"Failed to update habit {habit_id}.")
+            return None
+
+    @classmethod
     async def get_habits(cls) -> dict | None:
         """
         Метод для получения всех привычек текущего пользователя.
