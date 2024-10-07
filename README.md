@@ -32,5 +32,5 @@ ___
 
 ## Автор
 
-Этот проект был разработан **Богачевым Николаем Константиновичем** [Email me](mailto:Bogachev.pro@gmail.com)
+Этот проект был разработан **Богачевым Николаем ** [Email me](mailto:Bogachev.pro@gmail.com)
 .
