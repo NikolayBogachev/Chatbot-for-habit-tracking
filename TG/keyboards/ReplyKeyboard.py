@@ -8,8 +8,11 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     # Создаем кнопки
     kb = [
         [
+            KeyboardButton(text="📅 Трекинг выполнения")
+        ],
+        [
             KeyboardButton(text="📊 Статистика"),
-            KeyboardButton(text="📅 Выбор привычек")
+            KeyboardButton(text="📝 Выбор привычек")
         ],
         [
             KeyboardButton(text='ℹ️ О сервисе'),
@@ -21,6 +24,7 @@ def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
     # Создаем клавиатуру и добавляем кнопки
     keyboard = ReplyKeyboardMarkup(
         keyboard=kb,
-        resize_keyboard=True)
+        resize_keyboard=True,
+        one_time_keyboard=False)
 
     return keyboard

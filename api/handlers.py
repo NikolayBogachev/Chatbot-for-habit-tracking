@@ -373,3 +373,22 @@ async def create_habit_log(
     await db.refresh(habit)
 
     return new_log
+
+
+@router.get("/unlogged_habits", response_model=List[HabitResponse])
+async def get_habits(
+        token: str = Depends(oauth2_scheme),  # Проверка JWT токена
+        db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+):
+    user_crud = UserCRUD(db)
+    logger.info(f"Received token: {token}")
+
+    # Проверяем токен и получаем текущего пользователя
+    current_user = await user_crud.get_current_user(token)
+    logger.info(f"Current user ID: {current_user.id}")
+
+    # Получаем все привычки текущего пользователя через CRUD
+    habit_crud = HabitCRUD(db)
+    habits = await habit_crud.get_unlogged_tracked_habits(current_user.id)
+
+    return habits

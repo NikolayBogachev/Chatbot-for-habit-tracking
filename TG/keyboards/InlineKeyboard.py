@@ -20,6 +20,20 @@ def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
     return keyboard
 
 
+def completion_marks_keyboard() -> InlineKeyboardMarkup:
+    kb = [
+        [InlineKeyboardButton(text="✅ Я выполнил!",
+                              callback_data="completed")],
+        [InlineKeyboardButton(text="❌ Я не выполнил!",
+                              callback_data="not_fulfill")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+
+    return keyboard
+
+
 def track_habit_keyboard() -> InlineKeyboardMarkup:
     kb = [
         [InlineKeyboardButton(text="➕ Начать отслеживать привычку",

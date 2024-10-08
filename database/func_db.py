@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database.models import UserInDB, HabitInDB, HabitLogInDB
 from api.pydantic_models import User, HabitLogCreate
@@ -64,6 +65,32 @@ class UserCRUD:
 class HabitCRUD:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def get_unlogged_tracked_habits(self, user_id: int) -> list[HabitInDB]:
+        """
+        Возвращает список отслеживаемых привычек, которые не были отмечены сегодня.
+        """
+        today = datetime.utcnow().date()
+
+        # Выполняем запрос, чтобы получить все отслеживаемые привычки пользователя
+        statement = select(HabitInDB).filter(
+            HabitInDB.user_id == user_id,
+            HabitInDB.is_tracked == True
+        ).options(selectinload(HabitInDB.logs))  # Загружаем связанные логи привычек
+
+        result = await self.db.execute(statement)
+        habits = result.scalars().all()  # Получаем все привычки
+
+        unlogged_habits = []
+
+        # Проверяем для каждой привычки, есть ли запись за сегодня
+        for habit in habits:
+            # Проверяем, был ли лог за сегодня для данной привычки
+            today_log = next((log for log in habit.logs if log.log_date == today), None)
+            if not today_log:
+                unlogged_habits.append(habit)
+
+        return unlogged_habits
 
     async def create_habit(
             self,
