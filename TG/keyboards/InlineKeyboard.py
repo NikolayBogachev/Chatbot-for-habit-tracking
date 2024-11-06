@@ -1,7 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from TG.funcs_tg import User
-
 
 def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
     kb = [

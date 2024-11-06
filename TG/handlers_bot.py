@@ -84,6 +84,62 @@ async def handle_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
 
     await state.clear()
+
+"""
+Блок получения статстики.
+"""
+
+
+@router.message(lambda message: message.text == "📊 Статистика")
+async def handle_habit_choice(message: Message, state: FSMContext):
+    await message.delete()
+    await state.set_state(HabitStates.statistics)
+    habits = await User.get_habits()
+    print(habits)
+    if habits:
+        tracked_habits = [habit for habit in habits if habit.is_tracked == True]
+
+        if not tracked_habits:
+            await message.answer("У вас нет отслеживаемых привычек.")
+            return
+
+        # Формируем сообщение со статистикой по каждой привычке
+        stats_message = "📊 Ваша статистика по привычкам:\n\n"
+
+        for habit in tracked_habits:
+            stats_message += (
+                f"📝 Привычка: {habit.name}\n"
+                f"🔁 Стрик дней: {habit.current_streak}\n"
+                f"📅 Всего выполнено: {habit.total_completed} дней\n\n"
+            )
+
+        # Отправляем сообщение с информацией о привычках
+        await message.answer(stats_message)
+    else:
+        await User.authenticate_user(message.from_user.username, message.chat.id)
+        habits = await User.get_habits()
+        tracked_habits = [habit for habit in habits if habit.is_tracked]
+
+        if not tracked_habits:
+            await message.answer("У вас нет отслеживаемых привычек.")
+            return
+
+        # Формируем сообщение со статистикой по каждой привычке
+        stats_message = "📊 Ваша статистика по привычкам:\n\n"
+
+        for habit in tracked_habits:
+            stats_message += (
+                f"📝 Привычка: {habit.name}\n"
+                f"🔁 Стрик дней: {habit.current_streak}\n"
+                f"📅 Всего выполнено: {habit.total_completed} дней\n\n"
+            )
+
+        # Отправляем сообщение с информацией о привычках
+        await message.answer(stats_message)
+
+
+
+
 """
 Блок отметок о выполнении.
 """

@@ -25,6 +25,7 @@ class HabitStates(StatesGroup):
     execution = State()
     execution_habit = State()
     not_completed = State()
+    statistics = State()
 
 
 async def switch_keyboard(callback: CallbackQuery, state: FSMContext, next_state: State, keyboard_func):
