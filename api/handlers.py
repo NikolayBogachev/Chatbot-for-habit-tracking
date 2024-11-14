@@ -18,7 +18,7 @@ from api.auth import AuthService, oauth2_scheme
 from config import config
 from database.models import HabitInDB
 
-logger.remove()  # Удалите все существующие обработчики
+logger.remove()
 logger.add(sys.stdout, level="INFO", format="{time} {level} {message}", backtrace=True, diagnose=True)
 
 
@@ -95,7 +95,6 @@ async def login(
     """
     user_crud = UserCRUD(db)
 
-    # Используем метод authenticate_user для проверки учетных данных
     user = await user_crud.authenticate_user(form_data.username, form_data.password)
 
     if not user:
@@ -126,22 +125,19 @@ async def refresh_access_token(
     """
     Обновляет access token и refresh token.
     """
-    # Декодируем refresh token
+
     payload = AuthService.decode_refresh_token(refresh_token)
     if payload is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
-    # Извлекаем username из payload
     username = payload.get("sub")
     if username is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    # Проверяем пользователя в БД
     user = await UserCRUD(db).get_user(username)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
-    # Генерируем новые токены
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = AuthService.create_access_token(data={"sub": username}, expires_delta=access_token_expires)
 
@@ -158,21 +154,19 @@ async def refresh_access_token(
 @router.post("/habits", response_model=HabitResponse)
 async def create_habit(
     habit_data: HabitCreate,
-    token: str = Depends(oauth2_scheme),  # Проверка JWT токена и получение пользователя
-    db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
 ):
     user_crud = UserCRUD(db)
-    logger.info(f"Received token: {token}")  # Логирование токена
+    logger.info(f"Received token: {token}")
 
     try:
-        # Проверяем токен и получаем текущего пользователя
         current_user = await user_crud.get_current_user(token)
         logger.info(f"Current user: {current_user.id}")
 
-        # Создаем новую привычку через CRUD
         habit_crud = HabitCRUD(db)
         new_habit = await habit_crud.create_habit(
-            user_id=current_user.id,  # Используем id пользователя из токена
+            user_id=current_user.id,
             name=habit_data.name,
             description=habit_data.description,
             target_days=habit_data.target_days,
@@ -184,18 +178,15 @@ async def create_habit(
             is_tracked=habit_data.is_tracked
         )
 
-        # Возвращаем успешный ответ с объектом привычки и полем success
         return new_habit
 
     except HTTPException as http_exc:
-        # Обработка HTTP исключений (например, 401 Unauthorized)
         return JSONResponse(
             status_code=http_exc.status_code,
             content={"success": False, "detail": http_exc.detail}
         )
 
     except SQLAlchemyError as sql_exc:
-        # Обработка ошибок SQLAlchemy
         logger.error(f"Database error: {sql_exc}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -203,7 +194,6 @@ async def create_habit(
         )
 
     except Exception as exc:
-        # Общая обработка непредвиденных ошибок
         logger.error(f"Unexpected error: {exc}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -213,21 +203,18 @@ async def create_habit(
 
 @router.get("/habits/{habit_id}", response_model=HabitCreate)
 async def get_habit(
-        habit_id: int,  # Получаем ID привычки из URL
-        token: str = Depends(oauth2_scheme),  # Проверка JWT токена
-        db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+        habit_id: int,
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
 ):
     user_crud = UserCRUD(db)
     logger.info(f"Received token: {token}")
 
-    # Проверяем токен и получаем текущего пользователя
     current_user = await user_crud.get_current_user(token)
 
-    # Получаем привычку через CRUD
     habit_crud = HabitCRUD(db)
     habit = await habit_crud.get_habit(habit_id)
 
-    # Проверяем, принадлежит ли привычка текущему пользователю
     if habit is None or habit.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Habit not found or not accessible")
 
@@ -236,17 +223,15 @@ async def get_habit(
 
 @router.get("/habits", response_model=List[HabitResponse])
 async def get_habits(
-        token: str = Depends(oauth2_scheme),  # Проверка JWT токена
-        db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
 ):
     user_crud = UserCRUD(db)
     logger.info(f"Received token: {token}")
 
-    # Проверяем токен и получаем текущего пользователя
     current_user = await user_crud.get_current_user(token)
     logger.info(f"Current user ID: {current_user.id}")
 
-    # Получаем все привычки текущего пользователя через CRUD
     habit_crud = HabitCRUD(db)
     habits = await habit_crud.get_habits_by_user(current_user.id)
 
@@ -257,21 +242,18 @@ async def get_habits(
 async def update_habit(
         habit_id: int,
         habit_update: HabitUpdate,
-        token: str = Depends(oauth2_scheme),  # Проверка JWT токена и получение пользователя
-        db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
 ):
     habit_crud = HabitCRUD(db)
 
-    # Проверяем токен и получаем текущего пользователя
     user_crud = UserCRUD(db)
     current_user = await user_crud.get_current_user(token)
 
-    # Получаем привычку
     habit = await habit_crud.get_habit(habit_id)
     if habit is None or habit.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habit not found or access denied")
 
-    # Обновляем привычку
     updated_habit = await habit_crud.update_habit(
         habit_id=habit_id,
         name=habit_update.name,
@@ -288,17 +270,15 @@ async def update_habit(
 @router.delete("/habits/{habit_id}", response_model=None)
 async def delete_habit(
         habit_id: int,
-        token: str = Depends(oauth2_scheme),  # Проверка JWT токена и получение пользователя
-        db: AsyncSession = Depends(get_db)  # Получаем сессию базы данных
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
 ):
     habit_crud = HabitCRUD(db)
     user_crud = UserCRUD(db)
 
     try:
-        # Проверяем токен и получаем текущего пользователя
         current_user = await user_crud.get_current_user(token)
 
-        # Удаляем привычку
         await habit_crud.delete_habit(habit_id)
         return {"detail": "Habit deleted successfully"}
 
@@ -340,36 +320,47 @@ async def create_habit_log(
        - **404 Not Found**: Привычка с указанным `habit_id` не найдена.
        - **400 Bad Request**: Запись о выполнении привычки за текущий день уже существует.
        """
-    # Инициализация объекта CRUD для работы с HabitLog
+
     habit_log_crud = HabitLogCRUD(db)
 
-    # Проверяем, существует ли привычка
     habit = await db.get(HabitInDB, habit_id)
     if habit is None:
         raise HTTPException(status_code=404, detail="Habit not found")
 
     log_date = datetime.utcnow().date()
 
-    # Проверяем, есть ли уже запись на этот день
     existing_logs = await habit_log_crud.get_habit_logs_by_date(habit_id, log_date)
     if existing_logs:
         raise HTTPException(status_code=400, detail="Log for today already exists")
 
-    # Создаем новую запись о выполнении привычки
     new_log = await habit_log_crud.create_habit_log(habit_id, log_date, log_data)
 
-    # Обновляем текущую серию привычки
-    if log_data.completed:  # Проверяем значение completed
+    if log_data.completed:
         habit.current_streak += 1
         habit.total_completed += 1
     else:
         habit.current_streak = 0
 
-    # Обновляем запись привычки в базе данных
     db.add(habit)
     await db.commit()
 
-    # Обновляем сессию для свежих данных
     await db.refresh(habit)
 
     return new_log
+
+
+@router.get("/unlogged_habits", response_model=List[HabitResponse])
+async def get_habits(
+        token: str = Depends(oauth2_scheme),
+        db: AsyncSession = Depends(get_db)
+):
+    user_crud = UserCRUD(db)
+    logger.info(f"Received token: {token}")
+
+    current_user = await user_crud.get_current_user(token)
+    logger.info(f"Current user ID: {current_user.id}")
+
+    habit_crud = HabitCRUD(db)
+    habits = await habit_crud.get_unlogged_tracked_habits(current_user.id)
+
+    return habits

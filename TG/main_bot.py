@@ -5,13 +5,10 @@ import sys
 from TG.bot import dp, bot
 
 from loguru import logger
-from aiogram import Bot, Dispatcher
+
 
 from TG.handlers_bot import router
 from config import config
-from aiogram.client.default import DefaultBotProperties
-from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.enums import ParseMode
 
 
 async def main() -> None:

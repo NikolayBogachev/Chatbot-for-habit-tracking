@@ -22,6 +22,10 @@ class HabitStates(StatesGroup):
     track_habit_menu = State()
     begin_track_habit = State()
     cease_track_habit = State()
+    execution = State()
+    execution_habit = State()
+    not_completed = State()
+    statistics = State()
 
 
 async def switch_keyboard(callback: CallbackQuery, state: FSMContext, next_state: State, keyboard_func):

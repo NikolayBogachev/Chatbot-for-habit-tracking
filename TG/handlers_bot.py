@@ -16,7 +16,8 @@ from TG.keyboards.InlineKeyboard import (get_habit_choice_keyboard, useful_habit
                                          harmful_habit_choice_keyboard, health_habit_keyboard, sport_habit_keyboard,
                                          nutrition_habit_keyboard, update_habits_keyboard,
                                          create_habits_inline_keyboard, create_change_fields_keyboard,
-                                         track_habit_keyboard, create_track_habits_inline_keyboard)
+                                         track_habit_keyboard, create_track_habits_inline_keyboard,
+                                         completion_marks_keyboard)
 from TG.keyboards.ReplyKeyboard import get_main_menu_keyboard
 
 router = Router()
@@ -33,7 +34,6 @@ async def command_start_handler(message: Message):
     username = user.username
     chat_id = message.chat.id
 
-    # Попытка аутентификации пользователя
     auth_response = await User.authenticate_user(username, chat_id)
     logger.debug(f"Auth response: {auth_response}")
 
@@ -64,12 +64,12 @@ async def command_start_handler(message: Message):
             logger.error(f"User {user.full_name} registration failed.")
 
 
-@router.message(lambda message: message.text == "📅 Выбор привычек")
+@router.message(lambda message: message.text == "📝 Выбор привычек")
 async def handle_habit_choice(message: Message, state: FSMContext):
-    # Удаляем сообщение пользователя
+
     await message.delete()
     await state.set_state(HabitStates.main_menu)
-    # Отправляем новое сообщение с новой клавиатурой
+
     await bot.send_message(
         chat_id=message.chat.id,
         text="Выберите действие:",
@@ -77,12 +77,173 @@ async def handle_habit_choice(message: Message, state: FSMContext):
     )
 
 
-@router.callback_query(F.data == "cancel", StateFilter(HabitStates.main_menu))
+@router.callback_query(F.data == "cancel", StateFilter(HabitStates.main_menu, HabitStates.execution))
 async def handle_cancel(callback: CallbackQuery, state: FSMContext):
-    # Удаляем сообщение с клавиатурой
+
     await callback.message.delete()
 
     await state.clear()
+
+"""
+Блок получения статстики.
+"""
+
+
+@router.message(lambda message: message.text == "📊 Статистика")
+async def handle_habit_choice(message: Message, state: FSMContext):
+    await message.delete()
+    await state.set_state(HabitStates.statistics)
+
+    if not (habits := await User.get_habits()):
+        await User.authenticate_user(message.from_user.username, message.chat.id)
+        habits = await User.get_habits()
+
+    if habits:
+        tracked_habits = [habit for habit in habits if habit.is_tracked == True]
+
+        if not tracked_habits:
+            await message.answer("У вас нет отслеживаемых привычек.")
+            return
+
+        stats_message = "📊 Ваша статистика по привычкам:\n\n"
+
+        for habit in tracked_habits:
+            stats_message += (
+                f"📝 Привычка: {habit.name}\n"
+                f"🔁 Стрик дней: {habit.current_streak}\n"
+                f"📅 Всего выполнено: {habit.total_completed} дней\n\n"
+            )
+
+        await message.answer(stats_message)
+
+
+
+"""
+Блок отметок о выполнении.
+"""
+
+
+@router.message(lambda message: message.text == "📅 Трекинг выполнения")
+async def handle_habit_choice(message: Message, state: FSMContext):
+
+    await message.delete()
+    await state.set_state(HabitStates.execution)
+
+    await bot.send_message(
+        chat_id=message.chat.id,
+        text="Выберите действие:",
+        reply_markup=completion_marks_keyboard()
+    )
+
+
+@router.callback_query(F.data == "completed", StateFilter(HabitStates.execution))
+async def handle_completed_habit(callback: CallbackQuery, state: FSMContext):
+    habits = await User.get_unlogged_habits()
+    await state.set_state(HabitStates.execution_habit)
+    if habits:
+        keyb = create_habits_inline_keyboard(habits)
+        await bot.send_message(
+            chat_id=callback.message.chat.id,
+            text="Выберите выполненную привычку:",
+            reply_markup=keyb
+        )
+    else:
+
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        habits = await User.get_unlogged_habits()
+        keyb = create_habits_inline_keyboard(habits)
+        await bot.send_message(
+            chat_id=callback.message.chat.id,
+            text="Выберите выполненную привычку:",
+            reply_markup=keyb
+        )
+
+
+@router.callback_query(F.data == "not_fulfill", StateFilter(HabitStates.execution))
+async def handle_completed_habit(callback: CallbackQuery, state: FSMContext):
+    habits = await User.get_unlogged_habits()
+    await state.set_state(HabitStates.not_completed)
+    if habits:
+        keyb = create_habits_inline_keyboard(habits)
+        await bot.send_message(
+            chat_id=callback.message.chat.id,
+            text="Выберите не выполненную привычку:",
+            reply_markup=keyb
+        )
+    else:
+
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        habits = await User.get_unlogged_habits()
+        keyb = create_habits_inline_keyboard(habits)
+        await bot.send_message(
+            chat_id=callback.message.chat.id,
+            text="Выберите не выполненную привычку:",
+            reply_markup=keyb
+        )
+
+
+@router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.execution_habit, HabitStates.not_completed))
+async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
+
+    habit_id = int(callback.data.split("_")[-1])
+
+    if state == HabitStates.execution_habit:
+        log_data = {'completed': True}
+    elif state == HabitStates.not_completed:
+        log_data = {'completed': False}
+    else:
+        await callback.message.answer(
+            "❌ Ошибка: Неизвестное состояние. Пожалуйста, попробуйте снова.",
+            reply_markup=None
+        )
+        return
+
+    result = await User.create_habit_log(habit_id, log_data)
+
+    if result:
+
+        await callback.message.answer(
+            "✅ Вы успешно отметили выполнение привычки!",
+            reply_markup=None
+        )
+
+        await callback.message.delete()
+
+        await state.clear()
+    else:
+
+        await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
+        result = await User.create_habit_log(habit_id, log_data)
+
+        if result:
+
+            await callback.message.answer(
+                "✅ Вы успешно отметили выполнение привычки!",
+                reply_markup=None
+            )
+            # Удаляем сообщение с клавиатурой
+            await callback.message.delete()
+
+            await state.clear()
+        else:
+            # Если после всех попыток запрос не удался, информируем пользователя об ошибке
+            await callback.message.answer(
+                "❌ Не удалось отметить выполнение привычки. Пожалуйста, попробуйте снова позже.",
+                reply_markup=None
+            )
+
+
+@router.callback_query(F.data == "back",
+                       StateFilter(HabitStates.execution_habit, HabitStates.not_completed
+                                   )
+                       )
+async def handle_back(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(HabitStates.execution)
+    await bot.send_message(
+        chat_id=callback.message.chat.id,
+        text="Выберите действие:",
+        reply_markup=completion_marks_keyboard()
+    )
 
 """
 Блок самостоятельного создания привычки.
@@ -438,7 +599,8 @@ async def handle_health(callback: CallbackQuery, state: FSMContext):
                                    HabitStates.nutrition_menu, HabitStates.harmful_habit_menu,
                                    HabitStates.update_habits_menu, HabitStates.habits_menu, HabitStates.habits_change,
                                    HabitStates.habits_change_menu, HabitStates.track_habit_menu,
-                                   HabitStates.begin_track_habit, HabitStates.cease_track_habit)
+                                   HabitStates.begin_track_habit, HabitStates.cease_track_habit,
+                                   )
                        )
 async def handle_back(callback: CallbackQuery, state: FSMContext):
     # Получаем текущее состояние
@@ -477,9 +639,7 @@ async def handle_back(callback: CallbackQuery, state: FSMContext):
         case HabitStates.begin_track_habit.state:
             # Возвращаемся в главное меню
             await switch_keyboard(callback, state, HabitStates.track_habit_menu, track_habit_keyboard)
-        case HabitStates.cease_track_habit.state:
-            # Возвращаемся в главное меню
-            await switch_keyboard(callback, state, HabitStates.track_habit_menu, track_habit_keyboard)
+
 
 """
 Блок обработки дефолтных значений.

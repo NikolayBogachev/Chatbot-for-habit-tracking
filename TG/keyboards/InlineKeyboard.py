@@ -1,7 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from TG.funcs_tg import User
-
 
 def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
     kb = [
@@ -14,6 +12,20 @@ def get_habit_choice_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="⚙️ Редактировать привычки",
                               callback_data="update_habits")],
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
+
+    return keyboard
+
+
+def completion_marks_keyboard() -> InlineKeyboardMarkup:
+    kb = [
+        [InlineKeyboardButton(text="✅ Я выполнил!",
+                              callback_data="completed")],
+        [InlineKeyboardButton(text="❌ Я не выполнил!",
+                              callback_data="not_fulfill")],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 

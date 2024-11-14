@@ -50,6 +50,22 @@ class User:
         return {}
 
     @classmethod
+    async def create_habit_log(cls, habit_id: int, log_data: Dict[str, Any]) -> dict | None:
+        """
+        Отправляет запрос на создание записи о выполнении привычки.
+
+        :param habit_id: ID привычки.
+        :param log_data: Данные для записи о выполнении привычки (например, {'completed': True}).
+        :return: Ответ сервера или None, если ошибка.
+        """
+
+        headers = cls.get_auth_header()
+
+        # Отправляем запрос на создание записи о выполнении привычки
+        return await cls._make_request(f"{config.URL}/habits/{habit_id}/logs",
+                                       method="POST", json_data=log_data, headers=headers)
+
+    @classmethod
     async def update_habit(cls, habit_id: int, habit_update: dict) -> dict | None:
         """
         Метод для обновления привычки.
@@ -74,6 +90,18 @@ class User:
         else:
             logger.error(f"Failed to update habit {habit_id}.")
             return None
+
+    @classmethod
+    async def get_unlogged_habits(cls) -> dict | None:
+        """
+        Метод для получения всех привычек текущего пользователя.
+        """
+
+        headers = cls.get_auth_header()
+        response = await cls._make_request(f"{config.URL}/unlogged_habits", method="GET", headers=headers)
+        if response:
+            return response  # Ожидается, что ответ будет списком привычек
+        return None
 
     @classmethod
     async def get_habits(cls) -> dict | None:
