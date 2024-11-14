@@ -148,7 +148,7 @@ async def handle_completed_habit(callback: CallbackQuery, state: FSMContext):
             reply_markup=keyb
         )
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_unlogged_habits()
         keyb = create_habits_inline_keyboard(habits)
@@ -171,7 +171,7 @@ async def handle_completed_habit(callback: CallbackQuery, state: FSMContext):
             reply_markup=keyb
         )
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_unlogged_habits()
         keyb = create_habits_inline_keyboard(habits)
@@ -185,9 +185,8 @@ async def handle_completed_habit(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.execution_habit, HabitStates.not_completed))
 async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
 
-    habit_id = int(callback.data.split("_")[-1])  # Извлекаем ID привычки из callback_data
+    habit_id = int(callback.data.split("_")[-1])
 
-    # Определяем, какое значение log_data передать в зависимости от состояния
     if state == HabitStates.execution_habit:
         log_data = {'completed': True}
     elif state == HabitStates.not_completed:
@@ -199,26 +198,25 @@ async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    # Отправляем запрос на создание записи о выполнении привычки
     result = await User.create_habit_log(habit_id, log_data)
 
     if result:
-        # Если запрос успешный, отправляем сообщение об успешной отметке выполнения привычки
+
         await callback.message.answer(
             "✅ Вы успешно отметили выполнение привычки!",
-            reply_markup=None  # Можно добавить клавиатуру, если нужно
+            reply_markup=None
         )
-        # Удаляем сообщение с клавиатурой
+
         await callback.message.delete()
 
         await state.clear()
     else:
-        # Если токен неактуален, обновляем его и повторяем запрос
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         result = await User.create_habit_log(habit_id, log_data)
 
         if result:
-            # Если запрос успешный после обновления токена, отправляем сообщение об успешной отметке
+
             await callback.message.answer(
                 "✅ Вы успешно отметили выполнение привычки!",
                 reply_markup=None
