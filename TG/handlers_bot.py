@@ -34,7 +34,6 @@ async def command_start_handler(message: Message):
     username = user.username
     chat_id = message.chat.id
 
-    # Попытка аутентификации пользователя
     auth_response = await User.authenticate_user(username, chat_id)
     logger.debug(f"Auth response: {auth_response}")
 
@@ -67,10 +66,10 @@ async def command_start_handler(message: Message):
 
 @router.message(lambda message: message.text == "📝 Выбор привычек")
 async def handle_habit_choice(message: Message, state: FSMContext):
-    # Удаляем сообщение пользователя
+
     await message.delete()
     await state.set_state(HabitStates.main_menu)
-    # Отправляем новое сообщение с новой клавиатурой
+
     await bot.send_message(
         chat_id=message.chat.id,
         text="Выберите действие:",
@@ -80,7 +79,7 @@ async def handle_habit_choice(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "cancel", StateFilter(HabitStates.main_menu, HabitStates.execution))
 async def handle_cancel(callback: CallbackQuery, state: FSMContext):
-    # Удаляем сообщение с клавиатурой
+
     await callback.message.delete()
 
     await state.clear()
@@ -106,7 +105,6 @@ async def handle_habit_choice(message: Message, state: FSMContext):
             await message.answer("У вас нет отслеживаемых привычек.")
             return
 
-        # Формируем сообщение со статистикой по каждой привычке
         stats_message = "📊 Ваша статистика по привычкам:\n\n"
 
         for habit in tracked_habits:
@@ -116,7 +114,6 @@ async def handle_habit_choice(message: Message, state: FSMContext):
                 f"📅 Всего выполнено: {habit.total_completed} дней\n\n"
             )
 
-        # Отправляем сообщение с информацией о привычках
         await message.answer(stats_message)
 
 
@@ -128,10 +125,10 @@ async def handle_habit_choice(message: Message, state: FSMContext):
 
 @router.message(lambda message: message.text == "📅 Трекинг выполнения")
 async def handle_habit_choice(message: Message, state: FSMContext):
-    # Удаляем сообщение пользователя
+
     await message.delete()
     await state.set_state(HabitStates.execution)
-    # Отправляем новое сообщение с новой клавиатурой
+
     await bot.send_message(
         chat_id=message.chat.id,
         text="Выберите действие:",
