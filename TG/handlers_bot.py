@@ -221,12 +221,12 @@ async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
                 "✅ Вы успешно отметили выполнение привычки!",
                 reply_markup=None
             )
-            # Удаляем сообщение с клавиатурой
+
             await callback.message.delete()
 
             await state.clear()
         else:
-            # Если после всех попыток запрос не удался, информируем пользователя об ошибке
+
             await callback.message.answer(
                 "❌ Не удалось отметить выполнение привычки. Пожалуйста, попробуйте снова позже.",
                 reply_markup=None
@@ -254,7 +254,7 @@ async def handle_back(callback: CallbackQuery, state: FSMContext):
                        HabitStates.sport_menu, HabitStates.nutrition_menu, HabitStates.harmful_habit_menu))
 async def handle_useful_habit(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
-    # Отправляем сообщение с запросом ввода названия привычки и ForceReply
+
     success_msg = await bot.send_message(
         chat_id=callback.message.chat.id,
         text="Введите название привычки: Например 'Бег'",
@@ -265,7 +265,7 @@ async def handle_useful_habit(callback: CallbackQuery, state: FSMContext):
 
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода названия привычки
+
     await state.set_state(HabitStates.waiting_for_habit_name)
 
 
@@ -274,7 +274,6 @@ async def process_description(message: Message, state: FSMContext):
     await state.update_data(habit_name=message.text)
     user_id = message.from_user.id
 
-    # Отправляем сообщение с запросом ввода названия привычки и ForceReply
     success_msg = await bot.send_message(
         chat_id=message.chat.id,
         text="Введите описание привычки: Например 'Бегать по утрам'",
