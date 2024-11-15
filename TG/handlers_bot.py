@@ -1,3 +1,4 @@
+from datetime import date
 
 from aiogram import F, Router
 
@@ -284,16 +285,16 @@ async def process_description(message: Message, state: FSMContext):
         user_messages[user_id].append(message.message_id)
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода количества дней
+
     await state.set_state(HabitStates.waiting_for_description)
 
 
 @router.message(StateFilter(HabitStates.waiting_for_description))
 async def process_habit_name(message: Message, state: FSMContext):
-    # Сохраняем введенное название привычки в состояние
+
     await state.update_data(description=message.text)
     user_id = message.from_user.id
-    # Запрашиваем у пользователя количество дней отслеживания привычки
+
     success_msg = await bot.send_message(
         chat_id=message.chat.id,
         text="Сколько дней отслеживаем привычку? (по умолчанию 21 день)",
@@ -304,31 +305,29 @@ async def process_habit_name(message: Message, state: FSMContext):
         user_messages[user_id].append(message.message_id)
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода количества дней
+
     await state.set_state(HabitStates.waiting_for_days)
 
 
 @router.message(StateFilter(HabitStates.waiting_for_days))
 async def process_habit_days(message: Message, state: FSMContext):
     try:
-        # Преобразуем сообщение в число дней
+
         days = int(message.text)
     except ValueError:
-        days = 21  # Используем значение по умолчанию
+        days = 21
 
-    # Получаем данные из состояния
     user_data = await state.get_data()
     habit_name = user_data.get('habit_name')
     description = user_data.get('description', "")
 
-    # Формируем данные для создания привычки
     habit_data = {
         "name": habit_name,
         "description": description,
         "target_days": days,
         "streak_days": 0,
-        "start_date": "2024-09-17",  # Заменить на текущую дату при необходимости
-        "last_streak_start": "2024-09-17",
+        "start_date": date.today().isoformat(),  # Текущая дата
+        "last_streak_start": date.today().isoformat(),
         "current_streak": 0,
         "total_completed": 0
     }
