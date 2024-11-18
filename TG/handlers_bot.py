@@ -336,7 +336,7 @@ async def process_habit_days(message: Message, state: FSMContext):
     # Пытаемся создать привычку через API
     result = await User.create_habit(habit_data)
     if result:
-        # Удаляем все предыдущие сообщения пользователя
+
         if user_id in user_messages:
             for msg_id in user_messages[user_id]:
                 await bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
@@ -358,26 +358,23 @@ async def process_habit_days(message: Message, state: FSMContext):
         else:
             user_messages[user_id] = [success_msg.message_id]
     else:
-        # Обновляем токен и повторяем запрос
+
         await User.authenticate_user(message.from_user.username, message.chat.id)
         result = await User.create_habit(habit_data)
         if result:
-            # Удаляем все предыдущие сообщения пользователя
+
             if user_id in user_messages:
                 for msg_id in user_messages[user_id]:
                     await bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
 
-                # Очищаем список сообщений пользователя
                 del user_messages[user_id]
 
-            # Отправляем сообщение об успешном создании привычки
             success_msg = await bot.send_message(
                 chat_id=message.chat.id,
                 text=f"Привычка '{habit_name}' будет отслеживаться {days} дней.",
                 reply_markup=get_main_menu_keyboard()
             )
 
-            # Сохраняем ID сообщения в список
             if user_id in user_messages:
                 user_messages[user_id].append(success_msg.message_id)
                 user_messages[user_id].append(message.message_id)
@@ -386,7 +383,6 @@ async def process_habit_days(message: Message, state: FSMContext):
         else:
             await bot.send_message(message.chat.id, f"Неизвестная ошибка")
 
-    # Очищаем состояние
     await state.set_state(HabitStates.main_menu)
 
 """
