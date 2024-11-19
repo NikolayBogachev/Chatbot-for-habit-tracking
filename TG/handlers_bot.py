@@ -430,7 +430,6 @@ async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
     else:
 
-        # Если токен неактуален, обновляем его
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
