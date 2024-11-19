@@ -1,3 +1,4 @@
+from datetime import date
 
 from aiogram import F, Router
 
@@ -221,12 +222,12 @@ async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
                 "✅ Вы успешно отметили выполнение привычки!",
                 reply_markup=None
             )
-            # Удаляем сообщение с клавиатурой
+
             await callback.message.delete()
 
             await state.clear()
         else:
-            # Если после всех попыток запрос не удался, информируем пользователя об ошибке
+
             await callback.message.answer(
                 "❌ Не удалось отметить выполнение привычки. Пожалуйста, попробуйте снова позже.",
                 reply_markup=None
@@ -254,7 +255,7 @@ async def handle_back(callback: CallbackQuery, state: FSMContext):
                        HabitStates.sport_menu, HabitStates.nutrition_menu, HabitStates.harmful_habit_menu))
 async def handle_useful_habit(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
-    # Отправляем сообщение с запросом ввода названия привычки и ForceReply
+
     success_msg = await bot.send_message(
         chat_id=callback.message.chat.id,
         text="Введите название привычки: Например 'Бег'",
@@ -265,7 +266,7 @@ async def handle_useful_habit(callback: CallbackQuery, state: FSMContext):
 
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода названия привычки
+
     await state.set_state(HabitStates.waiting_for_habit_name)
 
 
@@ -274,7 +275,6 @@ async def process_description(message: Message, state: FSMContext):
     await state.update_data(habit_name=message.text)
     user_id = message.from_user.id
 
-    # Отправляем сообщение с запросом ввода названия привычки и ForceReply
     success_msg = await bot.send_message(
         chat_id=message.chat.id,
         text="Введите описание привычки: Например 'Бегать по утрам'",
@@ -285,16 +285,16 @@ async def process_description(message: Message, state: FSMContext):
         user_messages[user_id].append(message.message_id)
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода количества дней
+
     await state.set_state(HabitStates.waiting_for_description)
 
 
 @router.message(StateFilter(HabitStates.waiting_for_description))
 async def process_habit_name(message: Message, state: FSMContext):
-    # Сохраняем введенное название привычки в состояние
+
     await state.update_data(description=message.text)
     user_id = message.from_user.id
-    # Запрашиваем у пользователя количество дней отслеживания привычки
+
     success_msg = await bot.send_message(
         chat_id=message.chat.id,
         text="Сколько дней отслеживаем привычку? (по умолчанию 21 день)",
@@ -305,31 +305,29 @@ async def process_habit_name(message: Message, state: FSMContext):
         user_messages[user_id].append(message.message_id)
     else:
         user_messages[user_id] = [success_msg.message_id]
-    # Устанавливаем состояние ожидания ввода количества дней
+
     await state.set_state(HabitStates.waiting_for_days)
 
 
 @router.message(StateFilter(HabitStates.waiting_for_days))
 async def process_habit_days(message: Message, state: FSMContext):
     try:
-        # Преобразуем сообщение в число дней
+
         days = int(message.text)
     except ValueError:
-        days = 21  # Используем значение по умолчанию
+        days = 21
 
-    # Получаем данные из состояния
     user_data = await state.get_data()
     habit_name = user_data.get('habit_name')
     description = user_data.get('description', "")
 
-    # Формируем данные для создания привычки
     habit_data = {
         "name": habit_name,
         "description": description,
         "target_days": days,
         "streak_days": 0,
-        "start_date": "2024-09-17",  # Заменить на текущую дату при необходимости
-        "last_streak_start": "2024-09-17",
+        "start_date": date.today().isoformat(),  # Текущая дата
+        "last_streak_start": date.today().isoformat(),
         "current_streak": 0,
         "total_completed": 0
     }
@@ -338,7 +336,7 @@ async def process_habit_days(message: Message, state: FSMContext):
     # Пытаемся создать привычку через API
     result = await User.create_habit(habit_data)
     if result:
-        # Удаляем все предыдущие сообщения пользователя
+
         if user_id in user_messages:
             for msg_id in user_messages[user_id]:
                 await bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
@@ -360,26 +358,23 @@ async def process_habit_days(message: Message, state: FSMContext):
         else:
             user_messages[user_id] = [success_msg.message_id]
     else:
-        # Обновляем токен и повторяем запрос
+
         await User.authenticate_user(message.from_user.username, message.chat.id)
         result = await User.create_habit(habit_data)
         if result:
-            # Удаляем все предыдущие сообщения пользователя
+
             if user_id in user_messages:
                 for msg_id in user_messages[user_id]:
                     await bot.delete_message(chat_id=message.chat.id, message_id=msg_id)
 
-                # Очищаем список сообщений пользователя
                 del user_messages[user_id]
 
-            # Отправляем сообщение об успешном создании привычки
             success_msg = await bot.send_message(
                 chat_id=message.chat.id,
                 text=f"Привычка '{habit_name}' будет отслеживаться {days} дней.",
                 reply_markup=get_main_menu_keyboard()
             )
 
-            # Сохраняем ID сообщения в список
             if user_id in user_messages:
                 user_messages[user_id].append(success_msg.message_id)
                 user_messages[user_id].append(message.message_id)
@@ -388,7 +383,6 @@ async def process_habit_days(message: Message, state: FSMContext):
         else:
             await bot.send_message(message.chat.id, f"Неизвестная ошибка")
 
-    # Очищаем состояние
     await state.set_state(HabitStates.main_menu)
 
 """
@@ -403,7 +397,7 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
 
@@ -417,7 +411,7 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
         await switch_keyboard(callback, state, HabitStates.habits_change_menu, lambda: create_habits_inline_keyboard(habits))
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
 
@@ -426,18 +420,16 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.habits_menu))
 async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
-    habit_id = int(callback.data.split("_")[-1]) # Извлекаем ID привычки из callback_data
-    # Здесь добавьте логику для удаления привычки
-    result = await User.delete_habit(habit_id)  # Пример вызова метода удаления
+    habit_id = int(callback.data.split("_")[-1])
+
+    result = await User.delete_habit(habit_id)
 
     if result:
 
-        # Обновляем клавиатуру после удаления привычки
         habits = await User.get_habits()
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
     else:
 
-        # Если токен неактуален, обновляем его
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
