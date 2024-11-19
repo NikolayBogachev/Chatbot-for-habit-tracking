@@ -100,7 +100,7 @@ class User:
         headers = cls.get_auth_header()
         response = await cls._make_request(f"{config.URL}/unlogged_habits", method="GET", headers=headers)
         if response:
-            return response  # Ожидается, что ответ будет списком привычек
+            return response
         return None
 
     @classmethod
@@ -112,7 +112,7 @@ class User:
         headers = cls.get_auth_header()
         response = await cls._make_request(f"{config.URL}/habits", method="GET", headers=headers)
         if response:
-            return response  # Ожидается, что ответ будет списком привычек
+            return response
         return None
 
     @classmethod
