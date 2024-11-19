@@ -397,7 +397,7 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
 
@@ -411,7 +411,7 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
         await switch_keyboard(callback, state, HabitStates.habits_change_menu, lambda: create_habits_inline_keyboard(habits))
     else:
-        # Если токен неактуален, обновляем его
+
         await User.authenticate_user(callback.from_user.username, callback.message.chat.id)
         habits = await User.get_habits()
 
@@ -420,13 +420,12 @@ async def handle_update_habits(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("habit_"), StateFilter(HabitStates.habits_menu))
 async def handle_delete_habit(callback: CallbackQuery, state: FSMContext):
-    habit_id = int(callback.data.split("_")[-1]) # Извлекаем ID привычки из callback_data
-    # Здесь добавьте логику для удаления привычки
-    result = await User.delete_habit(habit_id)  # Пример вызова метода удаления
+    habit_id = int(callback.data.split("_")[-1])
+
+    result = await User.delete_habit(habit_id)
 
     if result:
 
-        # Обновляем клавиатуру после удаления привычки
         habits = await User.get_habits()
         await switch_keyboard(callback, state, HabitStates.habits_menu, lambda: create_habits_inline_keyboard(habits))
     else:
