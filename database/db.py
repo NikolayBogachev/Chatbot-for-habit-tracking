@@ -22,7 +22,7 @@ from config import config
 #     autoflush=True,
 # )
 
-DATABASE_URL = "sqlite+aiosqlite:///./test.database"  # Используйте SQLite для простоты, замените на PostgreSQL в продакшене
+DATABASE_URL = "sqlite+aiosqlite:///./test.database"
 engine = create_async_engine(DATABASE_URL)
 async_session = async_sessionmaker(
     engine,

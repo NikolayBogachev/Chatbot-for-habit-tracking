@@ -72,20 +72,18 @@ class HabitCRUD:
         """
         today = datetime.utcnow().date()
 
-        # Выполняем запрос, чтобы получить все отслеживаемые привычки пользователя
         statement = select(HabitInDB).filter(
             HabitInDB.user_id == user_id,
             HabitInDB.is_tracked == True
-        ).options(selectinload(HabitInDB.logs))  # Загружаем связанные логи привычек
+        ).options(selectinload(HabitInDB.logs))
 
         result = await self.db.execute(statement)
-        habits = result.scalars().all()  # Получаем все привычки
+        habits = result.scalars().all()
 
         unlogged_habits = []
 
-        # Проверяем для каждой привычки, есть ли запись за сегодня
         for habit in habits:
-            # Проверяем, был ли лог за сегодня для данной привычки
+
             today_log = next((log for log in habit.logs if log.log_date == today), None)
             if not today_log:
                 unlogged_habits.append(habit)
@@ -171,13 +169,13 @@ class HabitLogCRUD:
         self.db = db
 
     async def create_habit_log(self, habit_id: int, log_date: date, log_data: HabitLogCreate):
-        # Создание записи HabitLogInDB с извлечением поля completed
+
         new_log = HabitLogInDB(
             habit_id=habit_id,
             log_date=log_date,
-            completed=log_data.completed  # Извлекаем булевое значение completed
+            completed=log_data.completed
         )
-        # Добавляем новую запись в сессию
+
         self.db.add(new_log)
 
         # Коммитим изменения
