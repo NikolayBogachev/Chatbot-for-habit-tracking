@@ -181,7 +181,6 @@ class HabitLogCRUD:
         # Коммитим изменения
         await self.db.commit()
 
-        # Обновляем сессию и возвращаем новый лог
         await self.db.refresh(new_log)
         return new_log
 
