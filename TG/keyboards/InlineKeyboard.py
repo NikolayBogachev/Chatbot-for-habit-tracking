@@ -56,34 +56,30 @@ def create_track_habits_inline_keyboard(habits: dict, is_tracked: bool) -> Inlin
     """
     if not habits:
         habits = []
-    # Фильтруем привычки по флагу отслеживания
     filtered_habits = [habit for habit in habits if habit.get("is_tracked") == is_tracked]
 
-    # Создаем список для кнопок
     buttons = []
 
     if filtered_habits:
-        # Для каждой отфильтрованной привычки создаем кнопку
+
         for habit in filtered_habits:
             habit_name = habit["name"]
             habit_id = habit["id"]
-            # Создаем кнопку с названием привычки и её идентификатором как callback_data
+
             button = InlineKeyboardButton(text=habit_name, callback_data=f"habit_{habit_id}")
-            # Добавляем кнопку в список кнопок
-            buttons.append([button])  # добавляем кнопку в отдельный список, чтобы создать новый ряд
+
+            buttons.append([button])
     else:
-        # Если нет привычек с нужным флагом, добавляем сообщение
+
         no_habits_button = InlineKeyboardButton(
             text="Нет привычек с этим статусом",
             callback_data="no_habits"
         )
         buttons.append([no_habits_button])
 
-    # Добавляем кнопку "🔄 Назад" в отдельный ряд
     back_button = InlineKeyboardButton(text="🔄 Назад", callback_data="back")
     buttons.append([back_button])
 
-    # Создаем инлайн-клавиатуру, передавая список списков кнопок
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     return keyboard
