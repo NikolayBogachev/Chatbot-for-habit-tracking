@@ -472,10 +472,8 @@ async def handle_new_value(message: Message, state: FSMContext):
     field_to_change = user_data["change_field"]
     new_value = message.text
 
-    # Подготавливаем данные для обновления привычки
     update_data = {field_to_change: new_value}
 
-    # Логика обновления привычки в базе данных
     response = await User.update_habit(habit_id, update_data)
 
     if response:
