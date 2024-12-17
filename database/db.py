@@ -6,14 +6,12 @@ from database.models import UserInDB, Base
 from config import config
 
 
-#
-# # Параметры подключения к базе данных PostgreSQL
 # DATABASE_URL = config.URL
 #
-# # Создание асинхронного движка SQLAlchemy
+
 # engine = create_async_engine(DATABASE_URL, future=True, echo=True)
 #
-# # Создание асинхронной сессии SQLAlchemy
+
 # async_session = async_sessionmaker(
 #     engine,
 #     class_=AsyncSession,
