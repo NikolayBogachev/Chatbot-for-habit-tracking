@@ -8,11 +8,11 @@ from TG.bot import bot
 
 @celery_app.task
 async def send_habit_reminders():
-    # Получаем текущее время (дата без времени)
+
     today = datetime.utcnow().date()
 
     async with get_db() as session:
-        # Находим привычки, которые отслеживаются и не отмечены сегодня
+
         result = await session.execute(
             select(HabitInDB)
             .where(HabitInDB.is_tracked == True)
@@ -21,7 +21,6 @@ async def send_habit_reminders():
         )
         habits = result.scalars().all()
 
-        # Отправляем уведомления пользователям
         for habit in habits:
             await bot.send_message(
                 habit.user_id,  # Отправляем сообщение пользователю с этим ID
