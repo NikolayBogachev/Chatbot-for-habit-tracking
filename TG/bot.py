@@ -1,10 +1,8 @@
-
 from aiogram import Bot, Dispatcher
 from config import config
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
-
 
 
 session = AiohttpSession()

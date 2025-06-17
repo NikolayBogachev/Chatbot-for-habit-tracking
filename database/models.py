@@ -5,7 +5,7 @@ from sqlalchemy import (
     DateTime,
     Text,
     String,
-    UniqueConstraint, TIMESTAMP, Date, Boolean,
+    UniqueConstraint, TIMESTAMP, Date, Boolean, BigInteger,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -17,9 +17,12 @@ Base = declarative_base()
 class UserInDB(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)  # Уникальный идентификатор пользователя
-    username = Column(String, unique=True, index=True)  # Уникальное имя пользователя
-    hashed_password = Column(String)  # Хеш пароля
+    user_id = Column(BigInteger, primary_key=True, index=True)  # Уникальный ID пользователя
+    chat_id = Column(BigInteger, unique=True, nullable=False)  # ID чата Telegram
+    username = Column(String, nullable=False)  # Имя пользователя
+    deep_linking = Column(String, nullable=True, default="unknown")
+    is_premium = Column(Boolean, nullable=True, default=False)
+    language = Column(String(10), nullable=True, default="ru")
     created_at = Column(TIMESTAMP, server_default=func.now())  # Дата создания записи пользователя
 
     habits = relationship("HabitInDB", back_populates="user")  # Связь с привычками

@@ -62,7 +62,7 @@ async def register_user(user: User, db: AsyncSession = Depends(get_db)):
         ```
         """
     user_crud = UserCRUD(db)
-    db_user = await user_crud.get_user(user.username)
+    db_user = await user_crud.get_user(user.user_id)
     if db_user:
         raise HTTPException(status_code=400, detail="User already registered")
     await user_crud.create_user(user)

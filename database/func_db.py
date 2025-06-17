@@ -1,65 +1,90 @@
 from datetime import date, datetime
-from typing import Optional, Sequence
+from typing import Optional, Sequence, List, Any, TypeVar, Generic
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, Row, RowMapping
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models import UserInDB, HabitInDB, HabitLogInDB
+from database.models import UserInDB, HabitInDB, HabitLogInDB, Base
 from api.pydantic_models import User, HabitLogCreate
 from api.auth import AuthService
 
+ModelType = TypeVar("ModelType", bound=Base)
 
-class UserCRUD:
-    def __init__(self, db: AsyncSession):
-        self.db = db
 
-    async def get_user(self, username: str) -> Optional[UserInDB]:
-        query = select(UserInDB).filter(UserInDB.username == username)
-        result = await self.db.execute(query)
-        return result.scalars().first()
+class BaseCRUD(Generic[ModelType]):
+    def __init__(self, model: type(ModelType), db_session: AsyncSession):
+        self.model = model
+        self.db_session = db_session
 
-    async def create_user(self, user: User) -> UserInDB:
-        db_user = UserInDB(username=user.username, hashed_password=AuthService.get_password_hash(user.password))
+    async def create(self, **kwargs) -> ModelType:
+        """Создание новой записи"""
+        instance = self.model(**kwargs)
+        self.db_session.add(instance)
+        await self.db_session.commit()
+        await self.db_session.refresh(instance)
+        return instance
 
-        async with self.db as session:
-            try:
-                session.add(db_user)
-                await session.commit()
-                await session.refresh(db_user)
-            except IntegrityError:
-                await session.rollback()
-                raise HTTPException(status_code=400, detail="User already registered")
+    async def get(self, **kwargs) -> Optional[ModelType]:
+        """
+        Получает одну запись по произвольным полям.
+        Например:
+            user = await crud.get(username="john")
+            user = await crud.get(id=1)
+        """
+        stmt = select(self.model).filter_by(**kwargs)
+        result = await self.db_session.execute(stmt)
 
-        return db_user
-
-    async def authenticate_user(self, username: str, password: str) -> Optional[UserInDB]:
-        user = await self.get_user(username)
-        if user is None or not AuthService.verify_password(password, user.hashed_password):
+        try:
+            return result.scalar_one()
+        except NoResultFound:
             return None
-        return user
 
-    async def get_current_user(self, token: str) -> UserInDB:
-        payload = AuthService.decode_access_token(token)
-        if payload is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        user = await self.get_user(username)
-        if user is None:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
+    async def filter(self, **kwargs) -> Sequence[Row[Any] | RowMapping | Any]:
+        """Фильтрация записей по полям"""
+        stmt = select(self.model).filter_by(**kwargs)
+        result = await self.db_session.execute(stmt)
+        return result.scalars().all()
+
+    async def update(self, **kwargs) -> Optional[ModelType]:
+        """
+        Обновляет запись по произвольным полям.
+        Например:
+            await crud.update(id=1, username="new_name")
+            await crud.update(email="old@example.com", is_active=False)
+        """
+        instance = await self.get(**kwargs)
+        if not instance:
+            return None
+
+        for key, value in kwargs.items():
+            setattr(instance, key, value)
+
+        await self.db_session.commit()
+        await self.db_session.refresh(instance)
+        return instance
+
+    async def delete(self, **kwargs) -> bool:
+        """
+        Удаляет запись по произвольным полям.
+        Например:
+            await crud.delete(id=1)
+            await crud.delete(username="john")
+        """
+        instance = await self.get(**kwargs)
+        if not instance:
+            return False
+
+        await self.db_session.delete(instance)
+        await self.db_session.commit()
+        return True
+
+
+class UserCRUD(BaseCRUD[UserInDB]):
+    def __init__(self, db: AsyncSession):
+        super().__init__(model=UserInDB, db_session=db)
 
 
 class HabitCRUD:

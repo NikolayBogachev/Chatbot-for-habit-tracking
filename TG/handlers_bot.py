@@ -32,8 +32,13 @@ user_messages = {}
 @router.message(CommandStart())
 async def command_start_handler(message: Message):
     user = message.from_user
+    user_id = user.id
     username = user.username
     chat_id = message.chat.id
+    is_premium = user.is_premium
+    language = user.language_code
+    args = message.text.split()[1] if len(message.text.split()) > 1 else None
+    deep_linking = args if args else "unknown"  # Если параметр отсутствует, используем "unknown"
 
     auth_response = await User.authenticate_user(username, chat_id)
     logger.debug(f"Auth response: {auth_response}")

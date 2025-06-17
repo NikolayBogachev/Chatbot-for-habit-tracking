@@ -1,11 +1,9 @@
 import asyncio
 import sys
 
-
 from TG.bot import dp, bot
 
 from loguru import logger
-
 
 from TG.handlers_bot import router
 from config import config

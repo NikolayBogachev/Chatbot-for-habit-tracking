@@ -7,6 +7,9 @@ from config import config
 
 from loguru import logger
 
+from database.db import async_session
+from database.func_db import UserCRUD
+
 
 class User:
     access_token: str | None = None
@@ -137,12 +140,23 @@ class User:
         return await cls._make_request(f"{config.URL}/habits", method="POST", json_data=habit_data, headers=headers)
 
     @classmethod
-    async def register_user(cls, username: str, chat_id: int) -> str | None:
+    async def register_user(cls, user_id: int, username: str, chat_id: int, deep_linking: str, is_premium: bool,
+                            language: str) -> str | None:
         """
         Регистрирует пользователя и возвращает токен доступа.
         """
-        payload = {"username": username, "password": str(chat_id)}
-        response = await cls._make_request(f"{config.URL}/register", json_data=payload)
+        async with async_session() as db:
+            user_repo = UserCRUD(db)
+            user = user_repo.create(
+                user_id=user_id,
+                username=username,
+                chat_id=chat_id,
+                deep_linking=deep_linking,
+                is_premium=is_premium,
+                language=language
+            )
+
+
         if response:
             cls.access_token = response.get("access_token")
             cls.token_type = response.get("token_type")

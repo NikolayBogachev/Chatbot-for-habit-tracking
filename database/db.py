@@ -1,27 +1,17 @@
+import asyncio
 from typing import AsyncGenerator
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from database.models import UserInDB, Base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker, AsyncEngine
+from database.models import Base
 from config import config
 
 
-# DATABASE_URL = config.URL
-#
+DATABASE_URL = config.URL
 
-# engine = create_async_engine(DATABASE_URL, future=True, echo=True)
-#
 
-# async_session = async_sessionmaker(
-#     engine,
-#     class_=AsyncSession,
-#     expire_on_commit=False,
-#     autocommit=False,
-#     autoflush=True,
-# )
+engine = create_async_engine(DATABASE_URL, future=True, echo=True)
 
-DATABASE_URL = "sqlite+aiosqlite:///./test.database"
-engine = create_async_engine(DATABASE_URL)
+
 async_session = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -29,7 +19,6 @@ async_session = async_sessionmaker(
     autocommit=False,
     autoflush=True,
 )
-sync_engine = create_engine("sqlite:///./test.database")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -43,5 +32,25 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
-def init_db():
-    Base.metadata.create_all(bind=sync_engine)
+async def init_db(engine: AsyncEngine):
+    """
+    Асинхронная инициализация базы данных (создание таблиц).
+
+    :param engine: Асинхронный движок SQLAlchemy.
+    """
+    max_attempts = 10
+    attempt = 0
+
+    while attempt < max_attempts:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            print("База данных успешно инициализирована.")
+            return
+        except Exception as e:
+            print(f"Попытка {attempt + 1} неудачна: {e}")
+            await asyncio.sleep(5)
+            attempt += 1
+
+    raise Exception("Не удалось подключиться к базе данных после нескольких попыток.")
+
